@@ -1,0 +1,3 @@
+# Ignore everything in models/whisper except .gitkeep
+models/whisper/*
+!models/whisper/.gitkeep 

@@ -1,0 +1,19 @@
+services:
+  whisper-diarize:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./data:/data
+      - ./.env:/app/.env:ro
+      - ./models:/app/models:rw
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+      - USER_ID=${UID:-1000}  # Use your user ID or default to 1000
+      - GROUP_ID=${GID:-1000} # Use your group ID or default to 1000
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    command: /data/input.mp3 --output /data/output.vtt --model medium
+    # To run without creating orphan containers, use:
+    # docker compose run --rm whisper-diarize /data/input.mp3 --output /data/output.vtt --model medium --num-speakers 1
