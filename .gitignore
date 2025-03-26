@@ -1,0 +1,111 @@
+# Build directories
+build/
+cpp_version/build/
+**/build/
+bin/
+lib/
+
+# Cloned repositories and dependencies
+cpp_version/whisper.cpp/
+cpp_version/_deps/
+_deps/
+
+# Generated files
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+*.exe
+*.out
+*.app
+*.metallib
+*.mlmodel
+*.mlmodelc
+*.mlpackage
+*.bin
+compile_commands.json
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+xcuserdata/
+xcshareddata/
+*.xcworkspace/
+*.xcodeproj/
+
+# Logs and databases
+*.log
+*.sqlite
+whisper_benchmarks.csv
+benchmark_results.csv
+
+# Environment and credentials
+.env
+.env.*
+local.properties
+gradle.properties
+**/gradle.properties
+.gradle/
+
+# Cache directories
+.cache/
+.coreml/
+.test/
+.venv/
+
+# Language-specific
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Java/Android
+*.class
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+.gradle/
+local.properties
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ruby
+*.gem
+*.rbc
+/.config
+/coverage/
+/pkg/
+/tmp/
+
+# Metal shader files
+*.metal
+ggml-metal-embed.metal
+ggml-metal-embed.metal.tmp
+
+# Specific project files to ignore
+whisper.cpp/models/*.bin
+whisper.cpp/models/*.txt
+
+# Ignore everything in models/whisper except .gitkeep
+models/whisper/*
+!models/whisper/.gitkeep
+
+# Ignore everything in data except whisper_benchmarks.csv
+data/*
+!data/whisper_benchmarks.csv 
