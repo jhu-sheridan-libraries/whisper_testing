@@ -49,7 +49,6 @@ benchmark_results.csv
 
 # Environment and credentials
 .env
-.env.*
 local.properties
 gradle.properties
 **/gradle.properties
