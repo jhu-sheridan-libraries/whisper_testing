@@ -11,6 +11,16 @@ In the `cpp_version` directory, I have implemented a C++ version with it's own R
 
 In this directory, I have implemented a Python version with this README.md.
 
+Add mp3 files to the `data` directory and run the container.
+```bash
+# Build the python version
+docker compose up --build
+docker compose run --rm whisper-diarize /data/audio.mp3 --model tiny --num-speakers 2
+
+# Or run the cpp version
+cd cpp_version
+bash ./examples/run_example.sh
+```
 
 ## Whisper Diarization Docker
 
@@ -35,8 +45,8 @@ This Docker container provides an easy-to-use solution for:
 
 1. **Clone this repository:**
    ```bash
-   git clone <repository-url>
-   cd whisper-diarize
+   git clone https://github.com/DonRichards/whisper_testing
+   cd whisper_testing
    ```
 
 2. **Get a Hugging Face API token:**
@@ -212,3 +222,9 @@ Note: Actual processing times may vary based on:
 - Audio quality and complexity
 - Number of speakers
 - Background noise levels
+
+# Whisper Testing Project
+
+This repository contains testing and benchmarking tools for the Whisper speech recognition model, using the C++ implementation from whisper.cpp.
+
+## Project Structure

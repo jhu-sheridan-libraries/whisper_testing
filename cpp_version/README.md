@@ -99,7 +99,7 @@ cd ..
 2. Download a model:
 ```bash
 cd whisper.cpp
-bash ./models/download-ggml-model.sh tiny  # or base, small, medium, large
+bash ./examples/run_example.sh --file /data/audio.mp3 --model tiny
 cd ..
 ```
 
@@ -226,7 +226,7 @@ Current limitations compared to the Python version:
    ```bash
    # Download the model manually
    cd whisper.cpp
-   bash ./models/download-ggml-model.sh tiny
+   bash ./models/download-ggml-model.sh tiny -f /data/audio.mp3
    ```
 
 2. **Build errors**

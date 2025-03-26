@@ -6,42 +6,65 @@
 CURRENT_DIR=$(pwd)
 PARENT_DIR=$(dirname $CURRENT_DIR)
 
+# Find first mp3 file in data directory
+MP3_FILE=$(find $PARENT_DIR/data/ -name "*.mp3" -print -quit)
+MODEL_NAME="tiny"
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]
+do
+    key="$1"
+
+    case $key in
+        --file)
+        MP3_FILE="$2"
+        shift # past argument
+        shift # past value
+        ;;
+        --model)
+        MODEL_NAME="$2"
+        shift # past argument
+        shift # past value
+        ;;
+        --techniques)
+        # Collect all techniques until the next flag or end of arguments
+        TECHNIQUES=()
+        shift # past --techniques
+        while [[ $# -gt 0 && ! "$1" =~ ^-- ]]; do
+            TECHNIQUES+=("$1")
+            shift
+        done
+        ;;
+        --help)
+        echo "Usage: $0 [options]"
+        echo "  --model: tiny, base, small, medium, large"
+        echo "  --file: specify the MP3 file to transcribe"
+        echo "  --techniques: space-separated list of audio preprocessing techniques:"
+        echo "      noise_reduction volume_normalization dynamic_range_compression"
+        echo "      high_pass_filtering de_essing combine"
+        echo "      sample_rate_standardization audio_channel_management"
+        echo "Example: $0 --file audio.mp3 --model tiny --techniques noise_reduction high_pass_filtering"
+        exit 0
+        ;;
+        *)    # unknown option
+        MODEL_NAME="$1"
+        shift # past argument
+        ;;
+    esac
+done
+
 if [ -f "run_example.sh" ]; then
     cd ..
 fi
 
-# Check for cleanup utility and use it if available
-if [ -f "./build/cleanup_benchmarks" ]; then
-    echo "Cleaning up benchmark file..."
-    ./build/cleanup_benchmarks whisper_benchmarks.csv
-elif [ -f "./build/benchmark_cleanup" ]; then  # Fallback to the other possible name
-    echo "Cleaning up benchmark file..."
-    ./build/benchmark_cleanup whisper_benchmarks.csv
-else
-    echo "Warning: Benchmark cleanup utility not found"
-fi
-
-# If $1 is provided, use it as the model name else if --help is provided, print help
-if [ -n "$1" ]; then
-    MODEL_NAME=$1
-elif [ "$1" == "--help" ]; then
-    echo "Usage: $0 [model_name]"
-    echo "  model_name: tiny, base, small, medium, large"
-    exit 0
-else
-    MODEL_NAME="tiny"
-fi
-
 # Download tiny model if not exists
-if [ ! -f "whisper.cpp/models/ggml-tiny.bin" ]; then
-    echo "Downloading tiny model..."
+if [ ! -f "whisper.cpp/models/ggml-${MODEL_NAME}.bin" ]; then
+    echo "Downloading ${MODEL_NAME} model..."
     cd whisper.cpp
-    bash ./models/download-ggml-model.sh tiny
+    bash ./models/download-ggml-model.sh ${MODEL_NAME}
     cd ..
 fi
 
-# Find first mp3 file in data directory
-MP3_FILE=$(find $PARENT_DIR/data/ -name "*.mp3" -print -quit)
 # Get absolute path
 MP3_FILE=$(realpath $MP3_FILE)
 
@@ -53,12 +76,26 @@ fi
 echo "Using audio file: $MP3_FILE"
 
 # Create temp directory if it doesn't exist
-mkdir -p temp
+TEMP_DIR="$PARENT_DIR/temp"
+mkdir -p "$TEMP_DIR"
 
 # Convert audio to correct format (16kHz mono WAV)
-TEMP_WAV="temp/input_16k.wav"
-echo "Converting audio to 16kHz mono WAV..."
-ffmpeg -y -i "$MP3_FILE" -ar 16000 -ac 1 -c:a pcm_s16le "$TEMP_WAV"
+TEMP_WAV="$TEMP_DIR/processed_input.wav"
+
+# If no techniques specified, use default combine
+if [ ${#TECHNIQUES[@]} -eq 0 ]; then
+    TECHNIQUES=("combine")
+fi
+
+echo "Applying audio preprocessing techniques: ${TECHNIQUES[@]}"
+# Pass all techniques to preprocess_audio.sh
+bash ../preprocess_audio.sh "$MP3_FILE" "${TECHNIQUES[@]}"
+
+# Check if the file exists
+if [ ! -f "$TEMP_WAV" ]; then
+    echo "Error: WAV file not found"
+    exit 1
+fi
 
 # Verify the WAV file
 echo "Verifying WAV file..."
