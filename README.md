@@ -15,11 +15,12 @@ Add mp3 files to the `data` directory and run the container.
 ```bash
 # Build the python version
 docker compose up --build
-docker compose run --rm whisper-diarize /data/audio.mp3 --model tiny --num-speakers 2
+# Put your audio file in the data/ directory and run the container
+docker compose run --rm whisper-diarize audio.mp3 --model tiny --num-speakers 2
 
 # Or run the cpp version
 cd cpp_version
-bash ./examples/run_example.sh
+bash ./examples/run_example.sh --file /data/audio.mp3 --model tiny
 ```
 
 ## Whisper Diarization Docker
