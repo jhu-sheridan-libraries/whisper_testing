@@ -129,11 +129,54 @@ fi
 
 # Run transcription
 echo "Running transcription..."
+# Create a temporary file for stats
+STATS_FILE=$(mktemp)
+
+# Run whisper_diarize in background and capture its PID
 ./build/whisper_diarize \
     -a "$TEMP_WAV" \
     -o "$OUTPUT_FILE" \
     -m "$MODEL_NAME" \
-    -f vtt
+    -f vtt &
+WHISPER_PID=$!
+
+# Monitor CPU and memory usage every second while whisper_diarize runs
+while kill -0 $WHISPER_PID 2>/dev/null; do
+    # Get CPU usage (both percentage and number of cores)
+    CPU_STATS=$(ps -p $WHISPER_PID -o %cpu=,nlwp=)
+    CPU_PERCENT=$(echo $CPU_STATS | awk '{print $1}')
+    CPU_CORES=$(echo $CPU_STATS | awk '{print $2}')
+    
+    # Get memory percentage
+    MEM_PERCENT=$(ps -p $WHISPER_PID -o %mem=)
+    
+    echo "$CPU_PERCENT,$CPU_CORES,$MEM_PERCENT" >> $STATS_FILE
+    sleep 1
+done
+
+# Calculate average CPU and memory usage
+AVG_STATS=$(awk -F',' '{ 
+    cpu_sum+=$1; 
+    cores_sum+=$2;
+    mem_sum+=$3; 
+    count++ 
+} END { 
+    printf "%.1f,%.0f,%.1f", 
+    cpu_sum/count, 
+    cores_sum/count, 
+    mem_sum/count 
+}' $STATS_FILE)
+
+# Parse the averages
+CPU_PERCENT=$(echo $AVG_STATS | cut -d',' -f1)
+CPU_CORES=$(echo $AVG_STATS | cut -d',' -f2)
+MEM_PERCENT=$(echo $AVG_STATS | cut -d',' -f3)
+
+# Clean up stats file
+rm $STATS_FILE
+
+wait $WHISPER_PID
+PROCESSING_TIME=$SECONDS
 
 # Clean up temp files
 rm -f "$TEMP_WAV"
@@ -153,12 +196,6 @@ else
     fi
 fi
 
-# Run test benchmark to verify benchmark recording works
-if [ -f "./build/test_benchmark" ]; then
-    echo "Running test benchmark..."
-    ./build/test_benchmark
-fi
-
 # Record benchmark data directly
 if [ -f "$OUTPUT_FILE" ]; then
     # Get audio duration in seconds
@@ -169,9 +206,6 @@ if [ -f "$OUTPUT_FILE" ]; then
     # Get just the filename
     FILENAME=$(basename "$MP3_FILE")
     
-    # Get processing time (approximate based on command execution time)
-    PROCESSING_TIME=5.0
-    
     # Calculate real-time factor
     RTF=$(echo "$PROCESSING_TIME / $DURATION" | bc -l)
     RTF=$(printf "%.3f" "$RTF")
@@ -179,14 +213,13 @@ if [ -f "$OUTPUT_FILE" ]; then
     echo "Adding benchmark entry:"
     echo "  File: $FILENAME"
     echo "  Duration: $DURATION seconds"
-    echo "  Speakers: $NUM_SPEAKERS"
     echo "  Model: $MODEL_NAME"
     echo "  Processing time: $PROCESSING_TIME seconds"
     echo "  RTF: $RTF"
     
     # Add entry directly to benchmark file
     TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
-    echo "$TIMESTAMP,$FILENAME,$DURATION,$NUM_SPEAKERS,$MODEL_NAME,$PROCESSING_TIME,$RTF,50.0,8,30.0" >> whisper_benchmarks.csv
+    echo "$TIMESTAMP,$FILENAME,$DURATION,$NUM_SPEAKERS,$MODEL_NAME,$PROCESSING_TIME,$RTF,$CPU_PERCENT,$CPU_CORES,$MEM_PERCENT" >> whisper_benchmarks.csv
     
     echo "Benchmark entry added!"
 fi
