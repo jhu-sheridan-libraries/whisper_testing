@@ -35,10 +35,16 @@ do
             shift
         done
         ;;
+        --speakers)
+        NUM_SPEAKERS="$2"
+        shift # past argument
+        shift # past value
+        ;;
         --help)
         echo "Usage: $0 [options]"
         echo "  --model: tiny, base, small, medium, large"
         echo "  --file: specify the MP3 file to transcribe"
+        echo "  --speakers: number of speakers or 'auto' for automatic detection"
         echo "  --techniques: space-separated list of audio preprocessing techniques:"
         echo "      noise_reduction volume_normalization dynamic_range_compression"
         echo "      high_pass_filtering de_essing combine"
@@ -82,12 +88,12 @@ mkdir -p "$TEMP_DIR"
 # Convert audio to correct format (16kHz mono WAV)
 TEMP_WAV="$TEMP_DIR/processed_input.wav"
 
-# If no techniques specified, use default combine
+# If no techniques specified, use default audio_channel_management
 if [ ${#TECHNIQUES[@]} -eq 0 ]; then
-    TECHNIQUES=("combine")
+    TECHNIQUES=("audio_channel_management")
 fi
 
-echo "Applying audio preprocessing techniques: ${TECHNIQUES[@]}"
+echo "Applying audio preprocessing techniques: ${TECHNIQUES[*]}"
 # Pass all techniques to preprocess_audio.sh
 bash ../preprocess_audio.sh "$MP3_FILE" "${TECHNIQUES[@]}"
 
@@ -123,21 +129,37 @@ if [ ! -f "$MODEL_PATH" ]; then
     cd ..
 fi
 
-if [ ! -f "whisper_benchmarks.csv" ]; then
-    echo "timestamp,filename,duration_seconds,num_speakers,model,processing_time_seconds,real_time_factor,cpu_percent,cpu_count,memory_percent" > whisper_benchmarks.csv
+# Before running transcription, handle speaker detection
+if [ -z "$NUM_SPEAKERS" ]; then
+    # Default to 1 speaker if not specified
+    NUM_SPEAKERS="1"
 fi
 
-# Run transcription
-echo "Running transcription..."
+if [ "$NUM_SPEAKERS" = "auto" ]; then
+    echo "Counting speakers in audio file..."
+    NUM_SPEAKERS=$(pipenv run python ${PARENT_DIR}/count_speakers_in_audio.py "$TEMP_WAV")
+    echo "Number of speakers: $NUM_SPEAKERS"
+fi
+
+# Validate that NUM_SPEAKERS is a positive integer
+if ! [[ "$NUM_SPEAKERS" =~ ^[1-9][0-9]*$ ]]; then
+    echo "Error: Number of speakers must be a positive integer. Got: $NUM_SPEAKERS"
+    echo "Defaulting to 1 speaker."
+    NUM_SPEAKERS="1"
+fi
+
+# Run transcription with speaker count
+echo "Running transcription with $NUM_SPEAKERS speakers..."
 # Create a temporary file for stats
 STATS_FILE=$(mktemp)
 
-# Run whisper_diarize in background and capture its PID
+# Update whisper_diarize command to include speaker count
 ./build/whisper_diarize \
     -a "$TEMP_WAV" \
     -o "$OUTPUT_FILE" \
     -m "$MODEL_NAME" \
-    -f vtt &
+    -f vtt \
+    -s "$NUM_SPEAKERS" &
 WHISPER_PID=$!
 
 # Monitor CPU and memory usage every second while whisper_diarize runs
@@ -196,6 +218,9 @@ else
     fi
 fi
 
+echo -e "\nRunning fix_benchmark.sh to ensure benchmark file is in the correct format"
+bash ./fix_benchmark.sh
+
 # Record benchmark data directly
 if [ -f "$OUTPUT_FILE" ]; then
     # Get audio duration in seconds
@@ -223,3 +248,7 @@ if [ -f "$OUTPUT_FILE" ]; then
     
     echo "Benchmark entry added!"
 fi
+
+# Clean up temp files
+rm -f "$TEMP_WAV"
+echo -e "\nDone!"

@@ -7,6 +7,10 @@ name = "pypi"
 load-dotenv = "*"
 whisper = "*"
 openai-whisper = "*"
+"pyannote.audio" = "*"
+torch = "*"
+torchaudio = "*"
+speechbrain = "*"
 
 [dev-packages]
 
