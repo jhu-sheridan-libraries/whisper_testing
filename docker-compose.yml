@@ -14,6 +14,11 @@ services:
     dns:
       - 8.8.8.8
       - 8.8.4.4
+    deploy:
+      resources:
+        limits:
+          cpus: '0.70'
     command: /data/input.mp3 --output /data/output.vtt --model medium
     # To run without creating orphan containers, use:
+    # docker compose build
     # docker compose run --rm whisper-diarize /data/input.mp3 --output /data/output.vtt --model medium --num-speakers 1

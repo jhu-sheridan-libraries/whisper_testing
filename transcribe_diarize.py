@@ -15,6 +15,11 @@ import csv
 import datetime
 from pydub import AudioSegment  # For getting audio duration
 import psutil  # Add this import at the top
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+DEFAULT_SPEAK_LABEL = os.environ.get("DEFAULT_SPEAK_LABEL")
 
 def setup_args():
     parser = argparse.ArgumentParser(description="Transcribe audio with Whisper and perform speaker diarization")
@@ -226,17 +231,27 @@ def combine_transcription_with_diarization(segments: List[dict], diarization) ->
         }
         
         # Find speaker for this time segment
-        speaker_info = ""
+        best_speaker = None
+        max_overlap = 0
+
         for turn, _, speaker in diarization.itertracks(yield_label=True):
-            # If the segment has significant overlap with this speaker turn
-            if (max(segment.start, turn.start) < min(segment.end, turn.end)):
-                if speaker_info and speaker not in speaker_info:
-                    speaker_info += f"+{speaker}"
-                else:
-                    speaker_info = speaker
-        
-        if speaker_info:
-            segment_dict["speaker"] = speaker_info
+            overlap_start = max(segment.start, turn.start)
+            overlap_end = min(segment.end, turn.end)
+            overlap_duration = overlap_end - overlap_start
+
+            if overlap_duration > 0:
+                 if overlap_duration > max_overlap:
+                     max_overlap = overlap_duration
+                     best_speaker = speaker
+                 elif best_speaker and speaker != best_speaker:
+                     # Handle segments potentially spanning multiple speakers if needed
+                     # For simplicity, maybe just take the first dominant one
+                     pass # Keep the one with the largest overlap found so far
+
+        if best_speaker:
+            segment_dict["speaker"] = best_speaker
+        else:
+            segment_dict["speaker"] = DEFAULT_SPEAK_LABEL
         
         enhanced_segments.append(segment_dict)
     
@@ -250,7 +265,7 @@ def save_as_vtt(segments: List[dict], output_path: str):
         caption = webvtt.Caption(
             start=format_timestamp(segment["start"]),
             end=format_timestamp(segment["end"]),
-            text=f"<v {segment.get('speaker', 'UNKNOWN')}>{segment['text']}</v>"
+            text=f"<v {segment.get('speaker', DEFAULT_SPEAK_LABEL)}>{segment['text']}</v>"
         )
         vtt.captions.append(caption)
     
@@ -355,6 +370,8 @@ def print_time_estimate(duration: float, model: str, num_speakers: Optional[int]
     print(f"  - Transcription: {estimate['transcription_minutes']:.1f} minutes")
     if num_speakers:
         print(f"  - Diarization: {estimate['diarization_minutes']:.1f} minutes")
+    else:
+        print(f"  - Diarization not indicated.")
     print(f"Estimated real-time factor: {estimate['real_time_factor']:.1f}x")
     print("Note: Estimates are approximate and may vary based on CPU speed and audio complexity\n")
 
@@ -425,7 +442,7 @@ def main():
                         "start": segment["start"],
                         "end": segment["end"],
                         "text": segment["text"],
-                        "speaker": "UNKNOWN"  # Default speaker label
+                        "speaker": DEFAULT_SPEAK_LABEL
                     })
         except Exception as e:
             print(f"ERROR in diarization: {str(e)}")
@@ -436,7 +453,7 @@ def main():
                     "start": segment["start"],
                     "end": segment["end"],
                     "text": segment["text"],
-                    "speaker": "UNKNOWN"  # Default speaker label
+                    "speaker": DEFAULT_SPEAK_LABEL
                 })
     
     # Save the results based on the format
@@ -450,7 +467,7 @@ def main():
         # Add plain text output support if needed
         with open(output_path, "w") as f:
             for segment in enhanced_segments:
-                f.write(f"[{segment.get('speaker', 'UNKNOWN')}] {segment['text']}\n")
+                f.write(f"[{segment.get('speaker', DEFAULT_SPEAK_LABEL)}] {segment['text']}\n")
         print(f"Saved plain text file to {output_path}")
     
     # Calculate total processing time and log benchmark
