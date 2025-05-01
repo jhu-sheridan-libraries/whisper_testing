@@ -7,6 +7,7 @@ services:
       - ./data:/data
       - ./.env:/app/.env:ro
       - ./models:/app/models:rw
+      - ./transcribe_diarize.py:/app/transcribe_diarize.py:ro
     environment:
       - HF_TOKEN=${HF_TOKEN}
       - USER_ID=${UID:-1000}  # Use your user ID or default to 1000
