@@ -86,11 +86,7 @@ def get_hf_token():
 
 def check_hf_token():
     """Verify the Hugging Face token works and has necessary model access"""
-    try:
-        token = get_hf_token()
-    except Exception as e:
-        print(f"ERROR: {e}")
-        return False
+    token = get_hf_token()
 
     print("Configuring Hugging Face credentials...")
     print("Testing Hugging Face token...")
