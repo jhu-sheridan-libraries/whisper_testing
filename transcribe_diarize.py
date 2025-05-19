@@ -63,6 +63,25 @@ def setup_args():
                         help="Number of speakers expected in the audio (improves diarization)")
     return parser.parse_args()
 
+def get_hf_token():
+    try:
+        import google.colab  # noqa: F401
+        token = HfFolder().get_token()
+        if not token:
+            raise ValueError(
+                "Hugging Face token not found. Please run `notebook_login()` in Colab."
+            )
+        return token
+    except ImportError:
+        token = os.environ.get("HF_TOKEN")
+        if not token:
+            raise EnvironmentError(
+                "HF_TOKEN environment variable not set. "
+                "Please set it in your .env file or your shell environment."
+            )
+        return token
+
+
 def check_hf_token():
     """Verify the Hugging Face token works and has necessary model access"""
     token = os.environ.get("HF_TOKEN")
