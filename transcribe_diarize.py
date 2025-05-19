@@ -5,10 +5,10 @@ import torch
 from typing import Optional, Tuple, List
 import numpy as np
 from faster_whisper import WhisperModel
+from huggingface_hub import HfFolder
 from pyannote.audio import Pipeline
 import webvtt
 from tqdm import tqdm
-import huggingface_hub
 import sys
 import time
 import csv
@@ -63,7 +63,9 @@ def setup_args():
                         help="Number of speakers expected in the audio (improves diarization)")
     return parser.parse_args()
 
+
 def get_hf_token():
+    """Check env, if in colab use colab env, otherwise use sys env for HF token"""
     try:
         import google.colab  # noqa: F401
         token = HfFolder().get_token()
