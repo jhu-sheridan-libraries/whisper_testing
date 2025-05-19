@@ -86,9 +86,10 @@ def get_hf_token():
 
 def check_hf_token():
     """Verify the Hugging Face token works and has necessary model access"""
-    token = os.environ.get("HF_TOKEN")
-    if not token:
-        print("WARNING: HF_TOKEN environment variable not set")
+    try:
+        token = get_hf_token()
+    except Exception as e:
+        print(f"ERROR: {e}")
         return False
 
     print("Configuring Hugging Face credentials...")
