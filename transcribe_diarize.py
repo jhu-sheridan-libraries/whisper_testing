@@ -67,7 +67,7 @@ def setup_args():
 def get_hf_token():
     """Check env, if in colab use colab env, otherwise use sys env for HF token"""
     try:
-        import google.colab  # noqa: F401
+        import google.colab
         token = HfFolder().get_token()
         if not token:
             raise ValueError(
@@ -384,7 +384,7 @@ def perform_diarization(audio_path: str, num_speakers: Optional[int] = None) -> 
     print("Loading diarization pipeline...")
     try:
         # Verify token is available and valid
-        token = os.environ.get("HF_TOKEN")
+        token = get_hf_token()
         if not token:
             print("ERROR: HF_TOKEN not found in environment")
             print("Please set your Hugging Face token in the .env file")
