@@ -659,6 +659,9 @@ def main():
             if response.lower() != 'y':
                 print("Operation cancelled by user")
                 sys.exit(0)
+
+    # check HF token
+    check_hf_token()
     
     # Start timing
     start_time = time.time()
