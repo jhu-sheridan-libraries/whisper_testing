@@ -488,12 +488,15 @@ def combine_transcription_with_diarization(segments: List[dict], diarization) ->
     print("Combining transcription with speaker diarization...")
     
     enhanced_segments = []
-    
+
     for segment in tqdm(segments):
+        start = segment["start"]
+        end   = segment["end"]
+        text  = segment["text"].strip()
         segment_dict = {
-            "start": segment.start,
-            "end": segment.end,
-            "text": segment.text.strip()
+            "start": start,
+            "end": end,
+            "text": text
         }
         
         # Find speaker for this time segment
@@ -501,8 +504,8 @@ def combine_transcription_with_diarization(segments: List[dict], diarization) ->
         max_overlap = 0
 
         for turn, _, speaker in diarization.itertracks(yield_label=True):
-            overlap_start = max(segment.start, turn.start)
-            overlap_end = min(segment.end, turn.end)
+            overlap_start = max(start, turn.start)
+            overlap_end = min(end, turn.end)
             overlap_duration = overlap_end - overlap_start
 
             if overlap_duration > 0:
