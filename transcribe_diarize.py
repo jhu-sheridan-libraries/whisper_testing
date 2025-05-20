@@ -24,6 +24,14 @@ BEAM_SIZE = os.environ.get("BEAM_SIZE")
 CPU_THRESHOLD = os.environ.get("CPU_THRESHOLD")
 MIN_WORKERS = os.environ.get("MIN_WORKERS")
 
+
+def is_running_in_colab() -> bool:
+    try:
+        import google.colab  # this module only exists in Colab
+        return True
+    except ImportError:
+        return False
+
 # Add defaults for environment variables
 def get_env_float(name, default_value=0.75):
     """Get environment variable as float with default value"""
@@ -66,15 +74,14 @@ def setup_args():
 
 def get_hf_token():
     """Check env, if in colab use colab env, otherwise use sys env for HF token"""
-    try:
-        import google.colab
+    if is_running_in_colab():
         token = HfFolder().get_token()
         if not token:
             raise ValueError(
                 "Hugging Face token not found. Please run `notebook_login()` in Colab."
             )
         return token
-    except ImportError:
+    else:
         token = os.environ.get("HF_TOKEN")
         if not token:
             raise EnvironmentError(
@@ -559,7 +566,10 @@ def get_audio_duration(audio_path: str) -> float:
 
 def log_benchmark(audio_path: str, duration: float, num_speakers: int, model: str, processing_time: float):
     """Log benchmark data to CSV file"""
-    benchmark_file = "/data/whisper_benchmarks.csv"
+    if is_running_in_colab():
+        benchmark_file = "/content/data/whisper_benchmarks.csv"
+    else:
+        benchmark_file = "/data/whisper_benchmarks.csv"
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     # Get CPU info
