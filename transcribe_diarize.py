@@ -721,6 +721,7 @@ def main():
     # test if mp4 can be diarized, if not then convert to wav form and continue processing
     if not can_load_mp4_audio(args.audio_file):
         args.audio_file = convert_mp4_to_wav(args.audio_file)
+        print(f"Unable to diarize MP4, converted to WAV file: {args.audio_file}")
 
     try:
         # Transcribe the audio with num_speakers parameter
