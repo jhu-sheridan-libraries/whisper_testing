@@ -42,15 +42,6 @@ def convert_mp4_to_wav(input_path: str, output_path: str = None) -> str:
     return wav_path
 
 
-def can_load_mp4_audio(path: str) -> bool:
-    """test if torchaduio can load a file, if it can then mp4 is supported"""
-    try:
-        _waveform, _sr = torchaudio.load(path)
-        return True
-    except Exception:
-        return False
-
-
 def is_running_in_colab() -> bool:
     try:
         import google.colab  # this module only exists in Colab
@@ -718,12 +709,11 @@ def main():
         print(f"ERROR: Input file not found: {args.audio_file}")
         sys.exit(1)
 
-    # test if mp4 can be diarized, if not then convert to wav form and continue processing
-    if not can_load_mp4_audio(args.audio_file):
+
+    if args.audio_file.lower().endswith(".mp4"):
         args.audio_file = convert_mp4_to_wav(args.audio_file)
         print(f"Unable to diarize MP4, converted to WAV file: {args.audio_file}")
-    else:
-        print(f"Can diarize MP4 using original file: {args.audio_file}")
+
 
     try:
         # Transcribe the audio with num_speakers parameter
