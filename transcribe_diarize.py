@@ -2,6 +2,7 @@
 import argparse
 import os
 import torch
+import torchaudio
 from typing import Optional, Tuple, List
 import numpy as np
 from faster_whisper import WhisperModel
@@ -23,6 +24,31 @@ DEFAULT_SPEAK_LABEL = os.environ.get("DEFAULT_SPEAK_LABEL")
 BEAM_SIZE = os.environ.get("BEAM_SIZE")
 CPU_THRESHOLD = os.environ.get("CPU_THRESHOLD")
 MIN_WORKERS = os.environ.get("MIN_WORKERS")
+
+import os
+from pydub import AudioSegment
+
+
+def convert_mp4_to_wav(input_path: str, output_path: str = None) -> str:
+    if not os.path.isfile(input_path):
+        raise FileNotFoundError(f"No such file: {input_path}")
+
+    base, _ext = os.path.splitext(input_path)
+    wav_path = output_path or f"{base}.wav"
+
+    audio = AudioSegment.from_file(input_path, format="mp4")
+    audio.export(wav_path, format="wav")
+
+    return wav_path
+
+
+def can_load_mp4_audio(path: str) -> bool:
+    """test if torchaduio can load a file, if it can then mp4 is supported"""
+    try:
+        _waveform, _sr = torchaudio.load(path)
+        return True
+    except Exception:
+        return False
 
 
 def is_running_in_colab() -> bool:
@@ -691,7 +717,11 @@ def main():
     if not os.path.exists(args.audio_file):
         print(f"ERROR: Input file not found: {args.audio_file}")
         sys.exit(1)
-    
+
+    # test if mp4 can be diarized, if not then convert to wav form and continue processing
+    if not can_load_mp4_audio(args.audio_file):
+        args.audio_file = convert_mp4_to_wav(args.audio_file)
+
     try:
         # Transcribe the audio with num_speakers parameter
         segments = transcribe_audio(args.audio_file, args.model, args.task, args.language, args.num_speakers)
