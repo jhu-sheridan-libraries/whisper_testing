@@ -2,9 +2,7 @@
 import argparse
 import os
 import torch
-import torchaudio
 from typing import Optional, Tuple, List
-import numpy as np
 from faster_whisper import WhisperModel
 from huggingface_hub import HfFolder
 from pyannote.audio import Pipeline
@@ -14,7 +12,6 @@ import sys
 import time
 import csv
 import datetime
-from pydub import AudioSegment  # For getting audio duration
 import psutil  # Add this import at the top
 
 from dotenv import load_dotenv
