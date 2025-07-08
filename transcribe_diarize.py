@@ -35,7 +35,7 @@ def get_env_float(name, default_value=0.75):
             print(f"Warning: Invalid {name} value '{value}'. Using default {default_value}")
     return default_value
 
-def get_env_int(name, default_value=2):
+def get_env_int(name, default_value=1):
     """Get environment variable as integer with default value"""
     value = os.environ.get(name)
     if value:
@@ -415,6 +415,34 @@ def perform_diarization(audio_path: str, num_speakers: Optional[int] = None) -> 
         for pipeline_model in pipeline_models:
             try:
                 print(f"Attempting to load pipeline from {pipeline_model}...")
+
+                # Specific pre-flight check for pyannote/speaker-diarization-3.1's critical dependency
+                if pipeline_model == "pyannote/speaker-diarization-3.1":
+                    segmentation_dependency_model = "pyannote/segmentation-3.0"
+                    try:
+                        print(f"INFO: Performing pre-flight check for essential dependency: {segmentation_dependency_model}...")
+                        # Attempt to download a small, representative file (e.g., config.yaml) from the dependency.
+                        # This will trigger authentication and download mechanisms.
+                        huggingface_hub.hf_hub_download(
+                            repo_id=segmentation_dependency_model,
+                            filename="config.yaml",  # A small, common file.
+                            use_auth_token=token,
+                            # library_name="your-script-name", # Optional: for Hugging Face stats
+                            # library_version="your-script-version" # Optional
+                        )
+                        print(f"INFO: Pre-flight check for {segmentation_dependency_model} successful. Dependency appears accessible.")
+                    except Exception as dep_check_e:
+                        # This exception is raised if hf_hub_download fails for the dependency.
+                        print(f"\\nCRITICAL ERROR: Failed to access or download the critical dependency '{segmentation_dependency_model}'.")
+                        print(f"  This model is required by the preferred diarization pipeline '{pipeline_model}'.")
+                        print(f"  Error details from dependency check: {str(dep_check_e)}")
+                        print("\\n  Common reasons for this failure include:")
+                        print(f"  1. Missing user agreement: You might need to visit https://huggingface.co/{segmentation_dependency_model} and accept its terms of use.")
+                        print(f"  2. Invalid or missing HF_TOKEN: Ensure your Hugging Face token is correctly set in the .env file and has the necessary permissions.")
+                        print(f"  3. Network issues or model availability problems on Hugging Face Hub.")
+                        print("\\nThe script cannot continue without this component and will now exit.")
+                        sys.exit(1) # Exit the script immediately
+
                 pipeline = Pipeline.from_pretrained(
                     pipeline_model,
                     use_auth_token=token
@@ -538,7 +566,7 @@ def get_audio_duration(audio_path: str) -> float:
 
 def log_benchmark(audio_path: str, duration: float, num_speakers: int, model: str, processing_time: float):
     """Log benchmark data to CSV file"""
-    benchmark_file = "/data/whisper_benchmarks.csv"
+    benchmark_file = "/output/whisper_benchmarks.csv"
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     # Get CPU info
@@ -581,6 +609,16 @@ def log_benchmark(audio_path: str, duration: float, num_speakers: int, model: st
 
 def estimate_processing_time(duration: float, model: str, num_speakers: Optional[int] = None) -> dict:
     """Estimate processing time based on file duration, model size, and speakers"""
+    # Handle zero duration gracefully
+    if duration <= 0:
+        print("WARNING: Audio duration is zero or negative. Cannot estimate processing time.")
+        return {
+            "total_minutes": 0,
+            "transcription_minutes": 0,
+            "diarization_minutes": 0,
+            "real_time_factor": 0
+        }
+        
     # Base real-time factors for transcription (empirically determined)
     model_factors = {
         "tiny": 1.2,    # ~1.2x real-time
@@ -626,9 +664,27 @@ def print_time_estimate(duration: float, model: str, num_speakers: Optional[int]
 def main():
     args = setup_args()
     
+    # Verify input file exists
+    if not os.path.exists(args.audio_file):
+        print(f"ERROR: Input file not found: {args.audio_file}")
+        sys.exit(1)
+    
+    # Verify it's actually a file and not a directory
+    if os.path.exists(args.audio_file) and os.path.isdir(args.audio_file):
+        print(f"ERROR: {args.audio_file} exists but is not a regular file (might be a directory)")
+        print("This is often caused by Docker volume mount issues on macOS.")
+        print("Try using a different audio file or check Docker file sharing permissions.")
+        sys.exit(1)
+    
     # Get audio duration
     duration = get_audio_duration(args.audio_file)
     print(f"Audio duration: {duration:.2f} seconds")
+    
+    # Check if we have a valid duration
+    if duration <= 0:
+        print("ERROR: Could not determine audio duration or audio file is empty/corrupt.")
+        print("Please check that the file is a valid audio file.")
+        sys.exit(1)
     
     # Show time estimate
     print_time_estimate(duration, args.model, args.num_speakers)
@@ -650,13 +706,8 @@ def main():
     if not output_path:
         # Generate default output path by replacing extension
         input_basename = os.path.splitext(os.path.basename(args.audio_file))[0]
-        output_path = f"/data/{input_basename}.{args.format}"
+        output_path = f"/output/{input_basename}.{args.format}"
         print(f"No output path specified, using: {output_path}")
-    
-    # Verify input file exists
-    if not os.path.exists(args.audio_file):
-        print(f"ERROR: Input file not found: {args.audio_file}")
-        sys.exit(1)
     
     try:
         # Transcribe the audio with num_speakers parameter

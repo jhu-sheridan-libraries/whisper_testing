@@ -4,6 +4,18 @@
 echo "Environment variables at startup:"
 env | grep -i hf_
 
+# Debug information
+if [ "$1" == "--debug" ]; then
+    echo "=== Debug Mode ==="
+    echo "User: $(whoami)"
+    echo "Current directory: $(pwd)"
+    echo "Contents of /app:"
+    ls -la /app
+    echo "Contents of /app/models:"
+    ls -la /app/models
+    exit 0
+fi
+
 # Check for cached models
 echo "Checking for cached models..."
 WHISPER_CACHE="/app/models/whisper"
@@ -28,7 +40,7 @@ if [ -d "$WHISPER_CACHE" ]; then
     fi
 else
     echo "No cached Whisper models found. First run will download models."
-    mkdir -p "$WHISPER_CACHE"
+    mkdir -p "$WHISPER_CACHE" || echo "Warning: Could not create $WHISPER_CACHE directory"
 fi
 
 # Configure Hugging Face credentials
@@ -62,5 +74,19 @@ if [ -n "$HF_TOKEN" ]; then
     fi
 fi
 
-# Run the original command
-exec python transcribe_diarize.py "$@" 
+# Check if the first argument is a direct command
+if [[ "$1" == "ls" || "$1" == "file" || "$1" == "echo" || "$1" == "cat" || "$1" == "find" ]]; then
+    # Execute the command directly
+    exec "$@"
+elif [[ "$1" == "--" ]]; then
+    # If -- is provided, shift it out and execute the command directly
+    shift
+    exec "$@"
+elif [[ "$1" == "--shell" ]]; then
+    # If --shell is provided, start a shell
+    shift
+    exec /bin/bash
+else
+    # Run the transcribe_diarize.py script with all arguments
+    exec python /app/transcribe_diarize.py "$@"
+fi 

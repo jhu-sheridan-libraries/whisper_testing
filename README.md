@@ -1,40 +1,10 @@
-# Purpose of this project:
-- To provide a simple and easy-to-use solution for automatic speech transcription with speaker diarization using faster-whisper and pyannote.audio.
-- To provide a containerized solution for batch processing of audio files.
-- To provide a solution for transcribing audio files using OpenAI's Whisper model (with fallback to faster-whisper)
-- To provide a solution for identifying different speakers in the audio (diarization) using pyannote.audio
-- To provide a solution for outputting the results in various formats (VTT, SRT, or TXT)
-- Most importantly, to provide a solution testing the performance of different models and configurations for batch processing of audio files and reviewing the different trade-offs involved from Python and C++.
+# Whisper Testing Project
 
-## TL;DR:
-In the `cpp_version` directory, I have implemented a C++ version with it's own README.md and a whisper_benchmark.csv file with the results of the transcription and diarization.
+## Overview
 
-In this directory, I have implemented a Python version with this README.md.
+This project provides a containerized solution for automatic speech transcription and speaker diarization. It uses `faster-whisper` for efficient transcription and `pyannote.audio` for speaker diarization. The project is designed to be easy to use and to provide a consistent environment for batch processing audio files. It also includes tools for benchmarking the performance of different models and configurations.
 
-Add mp3 files to the `data` directory and run the container.
-```bash
-# Build the python version
-docker compose up --build
-# Put your audio file in the data/ directory and run the container
-docker compose run --rm whisper-diarize audio.mp3 --model tiny --num-speakers 2
-
-# Or run the cpp version
-cd cpp_version
-bash ./examples/run_example.sh --file /data/audio.mp3 --model tiny
-```
-
-## Whisper Diarization Docker
-
-A containerized solution for automatic speech transcription with speaker diarization using faster-whisper and pyannote.audio.
-
-This is an efficient method to apply Whisper on CPU-based systems, focusing on batch processing. It uses optimization techniques such as quantization and alternative frameworks for improved performance, combined with speaker diarization capabilities.
-
-### Overview
-
-This Docker container provides an easy-to-use solution for:
-- Transcribing audio files using OpenAI's Whisper model (with fallback to faster-whisper)
-- Identifying different speakers in the audio (diarization) using pyannote.audio
-- Outputting the results in various formats (VTT, SRT, or TXT)
+## Getting Started
 
 ### Prerequisites
 
@@ -57,22 +27,18 @@ This Docker container provides an easy-to-use solution for:
 
 3. **Accept the model license agreements:**
    - Visit both:
-     - https://huggingface.co/pyannote/speaker-diarization
-     - https://huggingface.co/pyannote/segmentation
+     - https://huggingface.co/pyannote/speaker-diarization-3.1
+     - https://huggingface.co/pyannote/segmentation-3.0
    - You may need to first log in to your Hugging Face account
    - Click the "Access repository" button or "Files and versions"
    - Read and accept the terms of use for both models
 
 4. **Configure your environment:**
-   - Copy the example .env file: `cp .env.example .env`
-   - Edit the .env file and add your Hugging Face token:
-     ```
-     HF_TOKEN=your_token_here
-     ```
+   - The application uses the `HF_TOKEN` environment variable. You can set it in your shell profile or pass it directly to the `docker-compose` command.
 
-### Usage
+## Usage
 
-1. **Place your audio files in the data directory:**
+1. **Place your audio files in the `data` directory:**
    ```bash
    mkdir -p data
    cp path/to/your/audio.mp3 data/
@@ -80,19 +46,36 @@ This Docker container provides an easy-to-use solution for:
 
 2. **Run the transcription:**
    ```bash
-   # Basic usage (output will be audio.vtt)
-   docker compose run --rm whisper-diarize /data/audio.mp3 --model tiny
+   # Basic usage (output will be in the output/ directory)
+   docker compose run --rm -e HF_TOKEN=$HF_TOKEN whisper-diarize /data/audio.mp3 --model tiny
 
    # Specify number of speakers
-   docker compose run --rm whisper-diarize /data/audio.mp3 --model tiny --num-speakers 2
+   docker compose run --rm -e HF_TOKEN=$HF_TOKEN whisper-diarize /data/audio.mp3 --model tiny --num-speakers 2
 
    # Choose output format
-   docker compose run --rm whisper-diarize /data/audio.mp3 --model tiny --format txt
+   docker compose run --rm -e HF_TOKEN=$HF_TOKEN whisper-diarize /data/audio.mp3 --model tiny --format txt
    ```
 
-   The output file will automatically use the same name as the input file but with the appropriate extension (e.g., audio.mp3 → audio.vtt)
+   The output file will be placed in the `output` directory, and will automatically use the same name as the input file but with the appropriate extension (e.g., audio.mp3 → audio.vtt)
 
-### Model Options
+## Direct Command Execution
+
+The `entrypoint.sh` script allows for direct command execution inside the container. This is useful for debugging and exploring the container's environment.
+
+- **Debug:**
+  ```bash
+  docker compose run --rm whisper-diarize --debug
+  ```
+- **Shell:**
+  ```bash
+  docker compose run --rm whisper-diarize --shell
+  ```
+- **Other commands:**
+  ```bash
+  docker compose run --rm whisper-diarize ls -l /app
+  ```
+
+## Model Options
 
 Available Whisper model sizes:
 - `tiny` (fastest, least accurate)
@@ -102,7 +85,7 @@ Available Whisper model sizes:
 - `large`
 - `large-v2` (slowest, most accurate)
 
-### Pre-downloading Models
+## Pre-downloading Models
 
 To avoid downloading models every time you run the container, you can pre-download them:
 
@@ -115,7 +98,7 @@ mkdir -p models
 python download_whisper_models.py --model tiny
 ```
 
-### Configuration Options
+## Configuration Options
 
 Command line arguments:
 - `--model` - Whisper model size (default: medium)
@@ -125,9 +108,9 @@ Command line arguments:
 - `--language` - Language code for transcription
 - `--task` - Choose between "transcribe" or "translate" (to English)
 
-### Troubleshooting
+## Troubleshooting
 
-#### Common Issues
+### Common Issues
 
 1. **File Not Found Error**
    - Make sure your audio file is in the ./data directory
@@ -136,15 +119,15 @@ Command line arguments:
 2. **Speaker Diarization Not Working**
    - Verify your Hugging Face token is correct
    - Ensure you've accepted the terms for both required models:
-     - pyannote/speaker-diarization
-     - pyannote/segmentation
+     - pyannote/speaker-diarization-3.1
+     - pyannote/segmentation-3.0
 
 3. **Model Download Issues**
    - Check your internet connection
    - Verify the models directory has correct permissions
    - Try pre-downloading the model using download_whisper_models.py
 
-### Cleaning Up
+## Cleaning Up
 
 To avoid accumulating orphan containers:
 ```bash
@@ -156,7 +139,7 @@ docker compose down --remove-orphans
 docker container prune
 ```
 
-### Output Formats
+## Output Formats
 
 1. **VTT (default)**
    - WebVTT format with speaker labels
@@ -172,7 +155,7 @@ docker container prune
 
 ## Benchmarking
 
-The system automatically logs performance metrics to `/data/whisper_benchmarks.csv`, including:
+The system automatically logs performance metrics to `/output/whisper_benchmarks.csv`, including:
 - Timestamp of the run
 - Audio filename and duration
 - Model used and number of speakers
@@ -224,9 +207,23 @@ Note: Actual processing times may vary based on:
 - Number of speakers
 - Background noise levels
 
-# Whisper Testing Project
+## Solution
 
-This repository contains testing and benchmarking tools for the Whisper speech recognition model, using the C++ implementation from whisper.cpp.
+The project has been updated to use a more streamlined Docker setup, which resolves previous issues with file permissions and volume mounts. The key changes are:
+
+- **Base Image**: The Dockerfile now uses the `linuxserver/faster-whisper:latest` base image, which comes with many of the required dependencies pre-installed.
+- **Simplified Dockerfile**: The Dockerfile is now much shorter and easier to understand.
+- **Simplified `docker-compose.yml`**: The `docker-compose.yml` file has been simplified to remove unnecessary volume mounts and configurations.
+- **Output Directory**: A new `output/` directory is used for all output files, including transcripts and benchmark logs.
+
+These changes make the project easier to use and more reliable, especially on macOS.
 
 ## Project Structure
-TO DO
+- **`data/`**: Input audio files.
+- **`output/`**: Output files (transcripts, benchmarks).
+- **`models/`**: Cached models.
+- **`cpp_version/`**: C++ implementation of the project.
+- **`Dockerfile`**: Docker configuration.
+- **`docker-compose.yml`**: Docker Compose configuration.
+- **`transcribe_diarize.py`**: Main Python script for transcription and diarization.
+- **`entrypoint.sh`**: Entrypoint script for the Docker container.

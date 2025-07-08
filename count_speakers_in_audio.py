@@ -9,7 +9,7 @@ def count_speakers_fast(audio_path):
     try:
         # Load speaker embedding model
         spk_model = EncoderClassifier.from_hparams(
-            source="speechbrain/spkrec-ecapa-voxceleb", 
+            source="speechbrain/spkrec-ecapa-voxceleb",
             run_opts={"device": "cuda" if torch.cuda.is_available() else "cpu"}
         )
         
