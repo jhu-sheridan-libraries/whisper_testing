@@ -3,17 +3,15 @@ import argparse
 import os
 import torch
 from typing import Optional, Tuple, List
-import numpy as np
 from faster_whisper import WhisperModel
+from huggingface_hub import HfFolder
 from pyannote.audio import Pipeline
 import webvtt
 from tqdm import tqdm
-import huggingface_hub
 import sys
 import time
 import csv
 import datetime
-from pydub import AudioSegment  # For getting audio duration
 import psutil  # Add this import at the top
 
 from dotenv import load_dotenv
@@ -23,6 +21,30 @@ DEFAULT_SPEAK_LABEL = os.environ.get("DEFAULT_SPEAK_LABEL")
 BEAM_SIZE = os.environ.get("BEAM_SIZE")
 CPU_THRESHOLD = os.environ.get("CPU_THRESHOLD")
 MIN_WORKERS = os.environ.get("MIN_WORKERS")
+
+import os
+from pydub import AudioSegment
+
+
+def convert_mp4_to_wav(input_path: str, output_path: str = None) -> str:
+    if not os.path.isfile(input_path):
+        raise FileNotFoundError(f"No such file: {input_path}")
+
+    base, _ext = os.path.splitext(input_path)
+    wav_path = output_path or f"{base}.wav"
+
+    audio = AudioSegment.from_file(input_path, format="mp4")
+    audio.export(wav_path, format="wav")
+
+    return wav_path
+
+
+def is_running_in_colab() -> bool:
+    try:
+        import google.colab  # this module only exists in Colab
+        return True
+    except ImportError:
+        return False
 
 # Add defaults for environment variables
 def get_env_float(name, default_value=0.75):
@@ -63,12 +85,29 @@ def setup_args():
                         help="Number of speakers expected in the audio (improves diarization)")
     return parser.parse_args()
 
+
+def get_hf_token():
+    """Check env, if in colab use colab env, otherwise use sys env for HF token"""
+    if is_running_in_colab():
+        token = HfFolder().get_token()
+        if not token:
+            raise ValueError(
+                "Hugging Face token not found. Please run `notebook_login()` in Colab."
+            )
+        return token
+    else:
+        token = os.environ.get("HF_TOKEN")
+        if not token:
+            raise EnvironmentError(
+                "HF_TOKEN environment variable not set. "
+                "Please set it in your .env file or your shell environment."
+            )
+        return token
+
+
 def check_hf_token():
     """Verify the Hugging Face token works and has necessary model access"""
-    token = os.environ.get("HF_TOKEN")
-    if not token:
-        print("WARNING: HF_TOKEN environment variable not set")
-        return False
+    token = get_hf_token()
 
     print("Configuring Hugging Face credentials...")
     print("Testing Hugging Face token...")
@@ -366,7 +405,7 @@ def perform_diarization(audio_path: str, num_speakers: Optional[int] = None) -> 
     print("Loading diarization pipeline...")
     try:
         # Verify token is available and valid
-        token = os.environ.get("HF_TOKEN")
+        token = get_hf_token()
         if not token:
             print("ERROR: HF_TOKEN not found in environment")
             print("Please set your Hugging Face token in the .env file")
@@ -498,12 +537,15 @@ def combine_transcription_with_diarization(segments: List[dict], diarization) ->
     print("Combining transcription with speaker diarization...")
     
     enhanced_segments = []
-    
+
     for segment in tqdm(segments):
+        start = segment["start"]
+        end   = segment["end"]
+        text  = segment["text"].strip()
         segment_dict = {
-            "start": segment.start,
-            "end": segment.end,
-            "text": segment.text.strip()
+            "start": start,
+            "end": end,
+            "text": text
         }
         
         # Find speaker for this time segment
@@ -511,8 +553,8 @@ def combine_transcription_with_diarization(segments: List[dict], diarization) ->
         max_overlap = 0
 
         for turn, _, speaker in diarization.itertracks(yield_label=True):
-            overlap_start = max(segment.start, turn.start)
-            overlap_end = min(segment.end, turn.end)
+            overlap_start = max(start, turn.start)
+            overlap_end = min(end, turn.end)
             overlap_duration = overlap_end - overlap_start
 
             if overlap_duration > 0:
@@ -566,7 +608,10 @@ def get_audio_duration(audio_path: str) -> float:
 
 def log_benchmark(audio_path: str, duration: float, num_speakers: int, model: str, processing_time: float):
     """Log benchmark data to CSV file"""
-    benchmark_file = "/output/whisper_benchmarks.csv"
+    if is_running_in_colab():
+        benchmark_file = "/content/data/whisper_benchmarks.csv"
+    else:
+        benchmark_file = "/data/whisper_benchmarks.csv"
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     # Get CPU info
@@ -697,6 +742,9 @@ def main():
             if response.lower() != 'y':
                 print("Operation cancelled by user")
                 sys.exit(0)
+
+    # check HF token
+    check_hf_token()
     
     # Start timing
     start_time = time.time()
@@ -709,6 +757,16 @@ def main():
         output_path = f"/output/{input_basename}.{args.format}"
         print(f"No output path specified, using: {output_path}")
     
+    # Verify input file exists
+    if not os.path.exists(args.audio_file):
+        print(f"ERROR: Input file not found: {args.audio_file}")
+        sys.exit(1)
+
+
+    if args.audio_file.lower().endswith(".mp4"):
+        args.audio_file = convert_mp4_to_wav(args.audio_file)
+        print(f"Unable to diarize MP4, converted to WAV file: {args.audio_file}")
+
     try:
         # Transcribe the audio with num_speakers parameter
         segments = transcribe_audio(args.audio_file, args.model, args.task, args.language, args.num_speakers)
