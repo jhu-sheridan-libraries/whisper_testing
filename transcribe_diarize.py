@@ -13,6 +13,7 @@ import time
 import csv
 import datetime
 import psutil  # Add this import at the top
+from pathlib import Path  # For cross-platform path handling
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -351,14 +352,15 @@ def transcribe_audio(audio_path: str, model_size: str, task: str, language: Opti
         import whisper
         print("Using OpenAI's whisper package as fallback.")
 
-        # Create cache directory if it doesn't exist
-        os.makedirs(whisper_cache_dir, exist_ok=True)
+        # Create cache directory if it doesn't exist (cross-platform)
+        cache_path = Path(whisper_cache_dir)
+        cache_path.mkdir(parents=True, exist_ok=True)
 
         # OpenAI whisper handles device selection automatically ('cuda' if available, else 'cpu')
         print(f"Loading OpenAI whisper model: {model_size} (device auto-selected)")
         # Note: download_root might behave differently or might need model path check
-        model_path = os.path.join(whisper_cache_dir, model_size + ".pt")
-        if os.path.exists(model_path):
+        model_path = cache_path / f"{model_size}.pt"
+        if model_path.exists():
              print(f"Found cached OpenAI model at {model_path}")
         else:
              print("OpenAI Model not found in cache, will download if needed...")
@@ -366,7 +368,7 @@ def transcribe_audio(audio_path: str, model_size: str, task: str, language: Opti
         # Load model - device selection is automatic here
         model = whisper.load_model(
             model_size,
-            download_root=whisper_cache_dir,
+            download_root=str(cache_path),
             in_memory=False # Keep False to ensure caching works as expected
         )
 

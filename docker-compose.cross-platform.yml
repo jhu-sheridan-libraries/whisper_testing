@@ -1,0 +1,26 @@
+services:
+  whisper-diarize:
+    build:
+      context: .
+      dockerfile: Dockerfile.cross-platform
+    volumes:
+      - ./data:/app/data
+      - ./output:/app/output
+      - ./models:/app/models
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+    deploy:
+      resources:
+        limits:
+          cpus: '0.70'
+    # Cross-platform usage:
+    # docker compose -f docker-compose.cross-platform.yml build whisper-diarize
+    # docker compose -f docker-compose.cross-platform.yml run --rm whisper-diarize --help
+    # 
+    # Windows PowerShell:
+    # docker compose -f docker-compose.cross-platform.yml run --rm whisper-diarize "C:\path\to\audio.wav"
+    # 
+    # Linux/Mac:
+    # docker compose -f docker-compose.cross-platform.yml run --rm whisper-diarize "/path/to/audio.wav"

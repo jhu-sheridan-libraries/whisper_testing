@@ -1,0 +1,56 @@
+# Cross-platform Dockerfile for Whisper transcription with diarization
+# Compatible with Linux and Windows containers
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    python3-dev \
+    ffmpeg \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install additional packages for whisper and diarization
+RUN pip install --no-cache-dir \
+    openai-whisper \
+    faster-whisper \
+    pyannote.audio==3.1.1 \
+    webvtt-py==0.4.6 \
+    python-dotenv==1.0.0 \
+    pydub==0.25.1 \
+    psutil==5.9.8 \
+    tqdm==4.66.1 \
+    numpy==1.26.0
+
+# Copy application files
+COPY . .
+
+# Make Python entrypoint executable
+RUN chmod +x entrypoint.py
+
+# Create necessary directories
+RUN mkdir -p /app/models /app/data /app/output
+
+# Create cache directories for HuggingFace
+RUN mkdir -p /root/.cache/huggingface && \
+    mkdir -p /root/.huggingface
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+
+# Expose volume mount points
+VOLUME ["/app/data", "/app/output", "/app/models"]
+
+# Use Python entrypoint for cross-platform compatibility
+ENTRYPOINT ["python", "/app/entrypoint.py"]
+CMD ["--help"]
