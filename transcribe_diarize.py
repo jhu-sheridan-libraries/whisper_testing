@@ -464,7 +464,8 @@ def perform_diarization(audio_path: str, num_speakers: Optional[int] = None) -> 
                         print(f"INFO: Performing pre-flight check for essential dependency: {segmentation_dependency_model}...")
                         # Attempt to download a small, representative file (e.g., config.yaml) from the dependency.
                         # This will trigger authentication and download mechanisms.
-                        huggingface_hub.hf_hub_download(
+                        from huggingface_hub import hf_hub_download
+                        hf_hub_download(
                             repo_id=segmentation_dependency_model,
                             filename="config.yaml",  # A small, common file.
                             use_auth_token=token,
