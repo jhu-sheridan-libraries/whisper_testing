@@ -21,31 +21,29 @@ def test_token():
     print(f"Token ends with: ...{token[-4:]}")
     
     try:
-        # Create a temporary directory in the user's home
-        temp_dir = os.path.join(os.environ.get('HOME', '/tmp'), '.hf_test')
-        os.makedirs(temp_dir, exist_ok=True)
+        # Try to access cached file first to avoid redundant downloads
+        print("Checking token access...")
         
-        # Try to download the config file using the official API
-        print("Attempting to download config file...")
-        print(f"Using temporary directory: {temp_dir}")
-        
-        file = hf_hub_download(
-            repo_id="pyannote/speaker-diarization",
-            filename="config.yaml",
-            token=token,
-            local_dir=temp_dir,
-            local_dir_use_symlinks=False
-        )
-        print(f"Successfully downloaded config to: {file}")
-        
-        # Clean up
         try:
-            os.remove(file)
-            os.rmdir(temp_dir)
-        except:
-            pass
-            
-        return True
+            # First try to access the cached file without downloading
+            cached_file = hf_hub_download(
+                repo_id="pyannote/speaker-diarization",
+                filename="config.yaml",
+                token=token,
+                local_files_only=True  # Only check cache, don't download
+            )
+            print(f"Token test successful - using cached config: {cached_file}")
+            return True
+        except Exception:
+            # File not in cache, download it once to verify access
+            print("Config not in cache, downloading for token verification...")
+            file = hf_hub_download(
+                repo_id="pyannote/speaker-diarization",
+                filename="config.yaml",
+                token=token
+            )
+            print(f"Token test successful - config cached to: {file}")
+            return True
             
     except Exception as e:
         print(f"Failed to verify token: {str(e)}")

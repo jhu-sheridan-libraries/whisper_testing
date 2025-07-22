@@ -1,3 +1,8 @@
+# Docker-specific ignores
+Dockerfile
+.dockerignore
+docker-compose.yml
+
 # Build directories
 build/
 cpp_version/build/
@@ -9,6 +14,10 @@ lib/
 cpp_version/whisper.cpp/
 cpp_version/_deps/
 _deps/
+
+# Git stuff
+.git/
+.gitignore
 
 # Generated files
 *.o
@@ -100,13 +109,3 @@ ggml-metal-embed.metal.tmp
 # Specific project files to ignore
 whisper.cpp/models/*.bin
 whisper.cpp/models/*.txt
-
-# Ignore everything in models/whisper except .gitkeep
-models/whisper/*
-!models/whisper/.gitkeep
-
-# Ignore everything in data except whisper_benchmarks.csv
-data/*
-!data/whisper_benchmarks.csv 
-output/
-hf_cache/
