@@ -62,6 +62,6 @@ if __name__ == "__main__":
     if len(sys.argv) != 2:
         print(0)
         sys.exit(1)
-
+    print("Counting the number of speakers.")
     audio_file = sys.argv[1]
     print(count_speakers_fast(audio_file))

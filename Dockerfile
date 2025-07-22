@@ -1,4 +1,12 @@
-FROM linuxserver/faster-whisper:latest
+# Docker does not natively support reading variables from .env in the FROM instruction.
+# However, you can use build arguments to pass the value from .env at build time.
+
+# In your .env file, you have:
+# WHISPER_VER=latest
+
+# In your Dockerfile, use an ARG and substitute it in the FROM line:
+ARG WHISPER_VER=latest
+FROM linuxserver/faster-whisper:${WHISPER_VER}
 
 # docker compose build --no-cache whisper-diarize
 
@@ -13,15 +21,8 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-# Install additional Python packages we need
-RUN pip install --no-cache-dir \
-    pyannote.audio==3.1.1 \
-    webvtt-py==0.4.6 \
-    python-dotenv==1.0.0 \
-    pydub==0.25.1 \
-    psutil==5.9.8 \
-    tqdm==4.66.1 \
-    numpy==1.26.0
+# Install additional Python packages from requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Setup HuggingFace credentials directory for appuser
 RUN mkdir -p ~/.cache/huggingface && \

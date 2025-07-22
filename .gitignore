@@ -109,3 +109,4 @@ models/whisper/*
 data/*
 !data/whisper_benchmarks.csv 
 output/
+hf_cache/

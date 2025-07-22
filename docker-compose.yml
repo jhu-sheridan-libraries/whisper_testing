@@ -7,12 +7,13 @@ services:
       - ./data:/data
       - ./output:/output
       - ./models:/app/models
+      - ./hf_cache:/config/.cache/huggingface
     environment:
       - HF_TOKEN=${HF_TOKEN}
     deploy:
       resources:
         limits:
-          cpus: '0.70'
+          cpus: '${CPU_LIMIT:-1.0}'
     # To run without creating orphan containers, use:
     # docker pull linuxserver/faster-whisper:latest
     # docker compose build --no-cache whisper-diarize
