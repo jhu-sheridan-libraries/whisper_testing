@@ -83,6 +83,8 @@ def setup_args():
                         help="Task (transcribe or translate to English)")
     parser.add_argument("--num-speakers", type=int, default=None,
                         help="Number of speakers expected in the audio (improves diarization)")
+    parser.add_argument("--whisper-cache-dir", type=str, default="/app/models/whisper",
+                        help="Directory to cache Whisper models")
     return parser.parse_args()
 
 
@@ -185,7 +187,8 @@ def check_hf_token():
         print(f"\nError verifying token access: {str(e)}")
         return False
 
-def transcribe_audio(audio_path: str, model_size: str, task: str, language: Optional[str], num_speakers: Optional[int] = 1) -> List[dict]:
+def transcribe_audio(audio_path: str, model_size: str, task: str, language: Optional[str],
+                     num_speakers: Optional[int] = 1, whisper_cache_dir: str = "/app/models/whisper") -> List[dict]:
     """Transcribe audio using Whisper with auto-detection for compute device and type."""
     if not os.path.exists(audio_path):
         raise RuntimeError(f"Audio file not found: {audio_path}")
@@ -235,11 +238,6 @@ def transcribe_audio(audio_path: str, model_size: str, task: str, language: Opti
     print(f"Using beam size: {beam_size_int}")
     # --- End Determine Beam Size ---
 
-    # Set up model paths
-    whisper_cache_dir = "/app/models/whisper"
-    # Model path for OpenAI whisper isn't directly used by faster-whisper loading
-    # model_path = os.path.join(whisper_cache_dir, model_size + ".pt")
-
     # Adjust VAD parameters based on speaker count (remains unchanged)
     vad_params = {
         'min_silence_duration_ms': 1000 if num_speakers == 1 else 500,
@@ -279,7 +277,6 @@ def transcribe_audio(audio_path: str, model_size: str, task: str, language: Opti
         else:
              # Standard faster-whisper models from guillaumekln
              model_id = f"guillaumekln/faster-whisper-{faster_model_size}"
-
 
         print(f"Attempting to load faster-whisper model: {model_id} with device: {device}, compute_type: {compute_type}")
 
@@ -714,7 +711,8 @@ def main():
 
     try:
         # Transcribe the audio with num_speakers parameter
-        segments = transcribe_audio(args.audio_file, args.model, args.task, args.language, args.num_speakers)
+        segments = transcribe_audio(args.audio_file, args.model, args.task, args.language, args.num_speakers,
+                                    args.whisper_cache_dir)
         if not segments:
             raise RuntimeError("Transcription failed to return any segments")
             
