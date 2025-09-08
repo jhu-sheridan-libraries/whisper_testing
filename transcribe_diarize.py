@@ -83,7 +83,7 @@ def setup_args():
                         help="Task (transcribe or translate to English)")
     parser.add_argument("--num-speakers", type=int, default=None,
                         help="Number of speakers expected in the audio (improves diarization)")
-    parser.add_argument("--whisper-cache-dir", type=str, default="/app/models/whisper",
+    parser.add_argument("--whisper_cache_dir", type=str, default="/app/models/whisper",
                         help="Directory to cache Whisper models")
     return parser.parse_args()
 
