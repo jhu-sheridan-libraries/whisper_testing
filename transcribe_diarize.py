@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import argparse
 import os
+import textwrap
+
 import torch
 from typing import Optional, Tuple, List
 from faster_whisper import WhisperModel
@@ -83,6 +85,8 @@ def setup_args():
                         help="Task (transcribe or translate to English)")
     parser.add_argument("--num-speakers", type=int, default=None,
                         help="Number of speakers expected in the audio (improves diarization)")
+    parser.add_argument("--line-length", type=int, default=30,
+                        help="Maximum number of characters per line in the VTT output. (default: 30)")
     parser.add_argument("--whisper_cache_dir", type=str, default="/app/models/whisper",
                         help="Directory to cache Whisper models")
     return parser.parse_args()
@@ -544,15 +548,43 @@ def combine_transcription_with_diarization(segments: List[dict], diarization) ->
     
     return enhanced_segments
 
-def save_as_vtt(segments: List[dict], output_path: str):
-    """Save the transcription as WebVTT file"""
+
+def wrap_text_for_vtt(text: str, max_length: int) -> str:
+    """
+    Wraps text to a specified max length for VTT captions.
+
+    Uses textwrap, which respects existing words. We explicitly tell
+    it not to break on hyphens, preserving hyphenated words.
+    It also will not break words that are longer than the max_length.
+    """
+    # break_long_words=False ensures that a single word (like a
+    # hyphenated one) longer than the limit is not broken.
+    wrapper = textwrap.TextWrapper(
+        width=max_length,
+        break_long_words=False,
+        break_on_hyphens=False,  # This ensures "long-running" is treated as one word
+        replace_whitespace=False  # Preserve existing line breaks if any
+    )
+    return wrapper.fill(text)
+
+
+def save_as_vtt(segments: List[dict], output_path: str, max_line_length: Optional[int] = None):
     vtt = webvtt.WebVTT()
     
     for segment in segments:
+        speaker_tag = f"<v {segment.get('speaker', DEFAULT_SPEAK_LABEL)}>"
+        raw_text = segment['text']
+
+        if max_line_length is not None and max_line_length > 0:
+            wrapped_text = wrap_text_for_vtt(raw_text, max_line_length)
+            final_text = f"{speaker_tag}{wrapped_text}"
+        else:
+            final_text = f"{speaker_tag}{raw_text}"
+
         caption = webvtt.Caption(
             start=format_timestamp(segment["start"]),
             end=format_timestamp(segment["end"]),
-            text=f"<v {segment.get('speaker', DEFAULT_SPEAK_LABEL)}>{segment['text']}</v>"
+            text=final_text  # Use the new final_text
         )
         vtt.captions.append(caption)
     
@@ -791,7 +823,7 @@ def main():
         
         # Save the results based on the format
         if args.format == "vtt":
-            save_as_vtt(enhanced_segments, output_path)
+            save_as_vtt(enhanced_segments, output_path, args.line_length)
         elif args.format == "srt":
             # Add SRT output support if needed
             print("SRT format not implemented yet, saving as VTT")
