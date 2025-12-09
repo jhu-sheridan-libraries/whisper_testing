@@ -898,7 +898,7 @@ def main():
         elif args.format == "srt":
             # Add SRT output support if needed
             print("SRT format not implemented yet, saving as VTT")
-            save_as_vtt(enhanced_segments, output_path)
+            save_as_vtt(enhanced_segments, output_path, args.line_length)
         elif args.format == "txt":
             # Add plain text output support if needed
             with open(output_path, "w") as f:
