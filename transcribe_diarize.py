@@ -572,24 +572,93 @@ def wrap_text_for_vtt(text: str, max_length: int) -> str:
 
 def save_as_vtt(segments: List[dict], output_path: str, max_line_length: Optional[int] = None):
     vtt = webvtt.WebVTT()
-    
+
+    max_len = max_line_length if max_line_length is not None and max_line_length > 0 else 80
+    max_lines = 2
+
+    global_last_speaker = None
+
     for segment in segments:
-        speaker_tag = f"<v {segment.get('speaker', DEFAULT_SPEAK_LABEL)}>"
-        raw_text = segment['text']
+        speaker = segment.get('speaker', DEFAULT_SPEAK_LABEL)
+        show_speaker_flag = (speaker != global_last_speaker)
+        global_last_speaker = speaker
 
-        if max_line_length is not None and max_line_length > 0:
-            wrapped_text = wrap_text_for_vtt(raw_text, max_line_length)
-            final_text = f"{speaker_tag}{wrapped_text}"
-        else:
-            final_text = f"{speaker_tag}{raw_text}"
+        words = segment.get('words', [])
 
-        caption = webvtt.Caption(
-            start=format_timestamp(segment["start"]),
-            end=format_timestamp(segment["end"]),
-            text=final_text  # Use the new final_text
-        )
-        vtt.captions.append(caption)
-    
+        if not words:
+            if segment['text']:
+                wrapper = textwrap.TextWrapper(
+                    width=max_len,
+                    break_long_words=False,
+                    break_on_hyphens=False
+                )
+                wrapped_text = wrapper.fill(segment['text'])
+                final_text_lines = wrapped_text.split('\n')
+
+                if show_speaker_flag:
+                    final_text_lines[0] = f"<v {speaker}>{final_text_lines[0]}"
+
+                vtt.captions.append(webvtt.Caption(
+                    format_timestamp(segment["start"]),
+                    format_timestamp(segment["end"]),
+                    "\n".join(final_text_lines)
+                ))
+            continue
+
+        block_lines = []
+        current_line = ""
+        block_start_time = words[0].start
+        block_last_word_end_time = words[0].end
+
+        for i, word in enumerate(words):
+            word_text = word.word.strip()
+            word_start_time = word.start
+            word_end_time = word.end
+
+            if not word_text:
+                continue
+
+            test_line = (current_line + " " + word_text).strip()
+
+            if len(test_line) > max_len and current_line:
+                block_lines.append(current_line)
+
+                if len(block_lines) == max_lines:
+                    final_text = "\n".join(block_lines)
+                    if show_speaker_flag:
+                        final_text = f"<v {speaker}>\n{final_text}"
+                        show_speaker_flag = False
+
+                    vtt.captions.append(webvtt.Caption(
+                        format_timestamp(block_start_time),
+                        format_timestamp(block_last_word_end_time),
+                        final_text
+                    ))
+
+                    block_lines = []
+                    current_line = word_text
+                    block_start_time = word_start_time
+                else:
+                    current_line = word_text
+            else:
+                current_line = test_line
+
+            block_last_word_end_time = word_end_time
+
+        if current_line:
+            block_lines.append(current_line)
+
+        if block_lines:
+            final_text = "\n".join(block_lines)
+            if show_speaker_flag:
+                final_text = f"<v {speaker}>\n{final_text}"
+
+            vtt.captions.append(webvtt.Caption(
+                format_timestamp(block_start_time),
+                format_timestamp(block_last_word_end_time),
+                final_text
+            ))
+
     vtt.save(output_path)
     print(f"Saved WebVTT file to {output_path}")
 
