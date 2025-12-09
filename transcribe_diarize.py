@@ -322,7 +322,8 @@ def transcribe_audio(audio_path: str, model_size: str, task: str, language: Opti
             language=language,
             vad_filter=True,
             vad_parameters=vad_params,
-            beam_size=beam_size_int
+            beam_size=beam_size_int,
+            word_timestamps=True
         )
 
         print(f"Detected language: {info.language} with probability {info.language_probability:.2f}\n")
@@ -334,7 +335,8 @@ def transcribe_audio(audio_path: str, model_size: str, task: str, language: Opti
             segments_list.append({
                 "start": segment.start,
                 "end": segment.end,
-                "text": segment.text
+                "text": segment.text,
+                "words": list(segment.words) if segment.words else []
             })
         print(f"Faster-whisper transcription successful: {len(segments_list)} segments found.")
         return segments_list
