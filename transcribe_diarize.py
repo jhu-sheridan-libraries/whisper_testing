@@ -517,10 +517,12 @@ def combine_transcription_with_diarization(segments: List[dict], diarization) ->
         start = segment["start"]
         end   = segment["end"]
         text  = segment["text"].strip()
+        words = segment.get("words", [])
         segment_dict = {
             "start": start,
             "end": end,
-            "text": text
+            "text": text,
+            "words": words
         }
         
         # Find speaker for this time segment
