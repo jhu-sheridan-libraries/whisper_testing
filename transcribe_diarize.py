@@ -779,15 +779,6 @@ def main():
     
     # Show time estimate
     print_time_estimate(duration, args.model, args.num_speakers)
-    
-    # Ask for confirmation if it's a long process
-    if duration > 600:  # If longer than 10 minutes
-        estimate = estimate_processing_time(duration, args.model, args.num_speakers)
-        if estimate['total_minutes'] > 30:  # If estimated time > 30 minutes
-            response = input(f"\nThis could take {estimate['total_minutes']:.1f} minutes. Continue? (y/n): ")
-            if response.lower() != 'y':
-                print("Operation cancelled by user")
-                sys.exit(0)
 
     # check HF token
     check_hf_token()
